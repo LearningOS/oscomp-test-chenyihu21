@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["RLIMIT_AS","RLIMIT_NOFILE","RLIMIT_STACK"],"enum":["TimerType","WaitStatus"],"struct":["CloneFlags","RLimit","TimeStat","Tms","WaitFlags"]};
