@@ -5,7 +5,7 @@
 #[macro_use]
 extern crate log;
 extern crate alloc;
-
+use axstd::println;
 mod ctypes;
 
 mod mm;
@@ -66,6 +66,8 @@ fn run_user_app(args: &[String], envs: &[String]) -> Option<i32> {
 
 #[unsafe(no_mangle)]
 fn main() {
+    println!("#### OS COMP TEST GROUP START basic-glibc ####");
+    println!("#### OS COMP TEST GROUP START basic-musl ####");
     let testcases = option_env!("AX_TESTCASES_LIST")
         .unwrap_or_else(|| "Please specify the testcases list by making user_apps")
         .split(',')
@@ -80,4 +82,6 @@ fn main() {
         let exit_code = run_user_app(&args, &[]);
         info!("User task {} exited with code: {:?}", testcase, exit_code);
     }
+    println!("#### OS COMP TEST GROUP END basic-musl ####");
+    println!("#### OS COMP TEST GROUP END basic-glibc ####");
 }

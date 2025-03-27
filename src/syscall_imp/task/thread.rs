@@ -2,12 +2,12 @@ use core::{ffi::c_char, ptr};
 
 use alloc::vec::Vec;
 use axerrno::{LinuxError, LinuxResult};
-use axtask::{current, yield_now, TaskExtMut, TaskExtRef};
+use axtask::{TaskExtRef, current, yield_now};
 use macro_rules_attribute::apply;
 use num_enum::TryFromPrimitive;
 
 use crate::{
-    ctypes::{WaitFlags, WaitStatus, RLimit, RLIMIT_AS, RLIMIT_NOFILE, RLIMIT_STACK},
+    ctypes::{WaitFlags, WaitStatus},
     ptr::{PtrWrapper, UserConstPtr, UserPtr},
     syscall_imp::syscall_instrument,
     task::wait_pid,
@@ -207,79 +207,4 @@ pub fn sys_execve(
     }
 
     unreachable!("execve should never return");
-}
-
-
-#[apply(syscall_instrument)]
-pub fn sys_prlimit64(
-    pid: i32,
-    resource: i32,
-    new_limit: UserConstPtr<RLimit>,
-    old_limit: UserPtr<RLimit>,
-) -> LinuxResult<isize> {
-    // 检查资源类型是否有效
-    // let curr_process = current().task_ext_mut();
-    info!("sys_prlimit64 pid: {}, resource: {}", pid, resource);
-    let curr_process = current();
-    let task_ext = curr_process.task_ext();
-    if pid == 0 || pid == task_ext.proc_id as i32 {
-        // 仅支持当前进程
-        match resource {
-            // RLIMIT_AS => {
-            //     let new_limit = new_limit.get()?;
-            //     let old_limit = old_limit.get_mut()?;
-            //     let old_limit = curr_process.task_ext().set_rlimit(RLIMIT_AS, new_limit, old_limit);
-            //     Ok(0)
-            // }
-            RLIMIT_STACK => {
-                info!("RLIMIT_STACK");
-                // let new_limit = new_limit.get()?;
-                let old_limit_ptr = old_limit.address().as_ptr();
-                
-                info!("111");
-                let new_limit_ptr = new_limit.address().as_ptr();
-                info!("222");
-                // let old_limit = curr_process.task_ext().set_rlimit(RLIMIT_STACK, new_limit, old_limit);
-                // Ok(0)
-                // let mut stack_limit = curr_process
-                let mut stack_limit: u64 = task_ext.get_stack_size();
-                if old_limit_ptr as usize != 0 {
-                    info!("RLIMIT_STACK: old_limit as usize != 0");
-                    let old_limit = old_limit_ptr as *mut RLimit;
-                    unsafe {
-                        *old_limit = RLimit {
-                            rlim_cur: stack_limit,
-                            rlim_max: stack_limit,
-                        };
-                    }
-                }
-                if new_limit_ptr as usize != 0 {
-                    info!("RLIMIT_STACK: new_limit as usize != 0");
-                    let new_limit = new_limit_ptr as *const RLimit;
-                    stack_limit = unsafe {
-                        (*new_limit).rlim_cur
-                    };
-                    task_ext.set_stack_size(stack_limit);
-                }
-                info!("RLIMIT_STACK: {}", stack_limit);
-            }
-            // RLIMIT_NOFILE => {
-            //     let new_limit = new_limit.get()?;
-            //     let old_limit = old_limit.get_mut()?;
-            //     let old_limit = curr_process.task_ext().set_rlimit(RLIMIT_NOFILE, new_limit, old_limit);
-            //     Ok(0)
-            // }
-            // _ => Err(LinuxError::EINVAL),
-            _=> { }
-        }
-    } else {
-        info!("sys_prlimit64 pid: {}, resource: {}", pid, resource);
-        return Err(LinuxError::EINVAL);
-    }
-
-    Ok(0)
-}
-
-pub fn sys_gettid() -> LinuxResult<isize> {
-    Ok(current().id().as_u64() as isize)
 }

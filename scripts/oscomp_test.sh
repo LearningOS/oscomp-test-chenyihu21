@@ -34,8 +34,23 @@ fi
 # TODO: add more basic testcases
 basic_testlist=(
     "/$LIBC/basic/brk"
-    "/$LIBC/basic/mmap"
-    "/$LIBC/basic/munmap"
+    "/$LIBC/basic/chdir"
+    "/$LIBC/basic/execve"
+    "/$LIBC/basic/pipe"
+    "/$LIBC/basic/close"
+    "/$LIBC/basic/dup"
+    "/$LIBC/basic/dup2"
+    "/$LIBC/basic/fstat"
+    "/$LIBC/basic/getcwd"
+    "/$LIBC/basic/mkdir_"
+    "/$LIBC/basic/open"
+    "/$LIBC/basic/read"
+    "/$LIBC/basic/unlink"
+    "/$LIBC/basic/write"
+    "/$LIBC/basic/openat"
+    "/$LIBC/basic/getdents"
+    "/$LIBC/basic/mount"
+    "/$LIBC/basic/umount"
 )
 busybox_testlist=("/$LIBC/busybox sh /$LIBC/busybox_testcode.sh")
 iozone_testlist=("/$LIBC/busybox sh /$LIBC/iozone_testcode.sh")

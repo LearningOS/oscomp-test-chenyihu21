@@ -368,15 +368,10 @@ impl AddrSpace {
     /// fault).
     pub fn handle_page_fault(&mut self, vaddr: VirtAddr, access_flags: MappingFlags) -> bool {
         if !self.va_range.contains(vaddr) {
-            info!("Page fault at address out of range: {:#x?}", vaddr);
             return false;
         }
         if let Some(area) = self.areas.find(vaddr) {
             let orig_flags = area.flags();
-            info!(
-                "Page fault at address {:#x?}, flags: {:#x?}, orig_flags: {:#x?}",
-                vaddr, access_flags, orig_flags
-            );
             if orig_flags.contains(access_flags) {
                 return area
                     .backend()
@@ -388,12 +383,9 @@ impl AddrSpace {
 
     /// Clone a [`AddrSpace`] by re-mapping all [`MemoryArea`]s in a new page table and copying data in user space.
     pub fn clone_or_err(&mut self) -> AxResult<Self> {
-        info!("Cloning address space");
         let mut new_aspace = Self::new_empty(self.base(), self.size())?;
-        info!("New address space created");
-        info!("self.areas: {:#?}", self.areas);
+
         for area in self.areas.iter() {
-            info!("Cloning memory area: {:#?}", area);
             let backend = area.backend();
             // Remap the memory area in the new address space.
             let new_area =
@@ -434,10 +426,7 @@ impl AddrSpace {
                     )
                 };
             }
-            info!("Memory area cloned");
-            info!("new_aspace.areas: {:#?}", new_aspace.areas);
         }
-        info!("Cloning address space done");
         Ok(new_aspace)
     }
 }

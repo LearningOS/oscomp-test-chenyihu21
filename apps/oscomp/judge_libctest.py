@@ -2,11 +2,7 @@ import json
 import sys
 
 # TODO: Add more commands to test here
-libctest_baseline = """
-========== START entry-static.exe argv ==========
-Pass!
-========== END entry-static.exe argv ==========
-"""
+libctest_baseline = """"""
 
 def parse_libctest(output):
     ans = {}

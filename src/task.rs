@@ -53,8 +53,6 @@ pub struct TaskExt {
     pub heap_bottom: AtomicU64,
     /// The user heap top
     pub heap_top: AtomicU64,
-    /// The user stack size
-    pub stack_size: AtomicU64,
 }
 
 impl TaskExt {
@@ -75,7 +73,6 @@ impl TaskExt {
             time: TimeStat::new().into(),
             heap_bottom: AtomicU64::new(heap_bottom),
             heap_top: AtomicU64::new(heap_bottom),
-            stack_size: AtomicU64::new(axconfig::plat::USER_STACK_SIZE as u64),
         }
     }
 
@@ -201,14 +198,6 @@ impl TaskExt {
 
     pub(crate) fn set_heap_top(&self, top: u64) {
         self.heap_top.store(top, Ordering::Release)
-    }
-
-    pub(crate) fn get_stack_size(&self) -> u64 {
-        self.stack_size.load(Ordering::Acquire)
-    }
-
-    pub(crate) fn set_stack_size(&self, size: u64) {
-        self.stack_size.store(size, Ordering::Release)
     }
 }
 

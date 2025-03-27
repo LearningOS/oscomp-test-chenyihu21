@@ -83,21 +83,6 @@ pub struct Tms {
     pub tms_cstime: usize,
 }
 
-/// sys_prlimit64 使用的数组
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct RLimit {
-    pub rlim_cur: u64, // 当前软限制
-    pub rlim_max: u64, // 最大硬限制
-}
-// sys_prlimit64 使用的选项
-/// 用户栈大小
-pub const RLIMIT_STACK: i32 = 3;
-/// 可以打开的 fd 数
-pub const RLIMIT_NOFILE: i32 = 7;
-/// 用户地址空间的最大大小
-pub const RLIMIT_AS: i32 = 9;
-
 numeric_enum_macro::numeric_enum! {
     #[repr(i32)]
     #[allow(non_camel_case_types)]
