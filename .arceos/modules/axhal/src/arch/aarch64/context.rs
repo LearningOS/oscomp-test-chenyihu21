@@ -237,7 +237,6 @@ impl TaskContext {
     pub fn set_tls(&mut self, tls_area: VirtAddr) {
         self.tpidr_el0 = tls_area.as_usize() as u64;
     }
-
     /// Changes the page table root for user space (`ttbr0_el1` register for aarch64 in el1 level).
     ///
     /// If not set, it means that this task is a kernel task and only `ttbr1_el1` register will be used.
