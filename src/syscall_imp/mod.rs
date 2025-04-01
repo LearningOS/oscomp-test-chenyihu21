@@ -170,6 +170,18 @@ fn handle_syscall(tf: &TrapFrame, syscall_num: usize) -> isize {
             0,
             0,
         ),
+        Sysno::prlimit64 => sys_prlimit64(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
+        Sysno::rt_sigtimedwait => sys_rt_sigtimedwait(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3() as _,
+        ),
         _ => {
             warn!("Unimplemented syscall: {}", syscall_num);
             axtask::exit(LinuxError::ENOSYS as _)
