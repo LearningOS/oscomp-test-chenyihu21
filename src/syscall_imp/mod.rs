@@ -162,6 +162,14 @@ fn handle_syscall(tf: &TrapFrame, syscall_num: usize) -> isize {
             tf.arg2().into(),
             tf.arg3() as _,
         ),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::fork => sys_clone(
+            17,
+            0,
+            0,
+            0,
+            0,
+        ),
         _ => {
             warn!("Unimplemented syscall: {}", syscall_num);
             axtask::exit(LinuxError::ENOSYS as _)
