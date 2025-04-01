@@ -220,3 +220,9 @@ pub fn sys_prlimit64(
     warn!("sys_prlimit64: not implemented");
     Ok(0)
 }
+
+#[apply(syscall_instrument)]
+pub fn sys_gettid() -> LinuxResult<isize> {
+    let curr = current();
+    Ok(curr.task_ext().proc_id as _)
+}

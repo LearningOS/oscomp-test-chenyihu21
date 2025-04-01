@@ -1,11 +1,11 @@
 [patch.'https://github.com/oscomp/arceos.git']
-axstd = { path = ".arceos/ulib/axstd" }
-arceos_posix_api = { path = ".arceos/api/arceos_posix_api" }
-axhal = { path = ".arceos/modules/axhal" }
-axmm = { path = ".arceos/modules/axmm" }
-axtask = { path = ".arceos/modules/axtask" }
-axsync = { path = ".arceos/modules/axsync" }
-axruntime = { path = ".arceos/modules/axruntime" }
-axns = { path = ".arceos/modules/axns" }
-axfs = { path = ".arceos/modules/axfs" }
-axconfig = { path = ".arceos/modules/axconfig" }
+axstd = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/ulib/axstd" }
+arceos_posix_api = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/api/arceos_posix_api" }
+axhal = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axhal" }
+axmm = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axmm" }
+axtask = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axtask" }
+axsync = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axsync" }
+axruntime = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axruntime" }
+axns = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axns" }
+axfs = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axfs" }
+axconfig = { path = "/home/cyh/oscomp-test-chenyihu21/.arceos/modules/axconfig" }
