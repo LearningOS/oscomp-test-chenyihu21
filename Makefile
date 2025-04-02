@@ -3,6 +3,8 @@ AX_TESTCASE ?= nimbos
 ARCH ?= x86_64
 LOG ?= off
 AX_TESTCASES_LIST=$(shell cat ./apps/$(AX_TESTCASE)/testcase_list | tr '\n' ',')
+AX_MUSL_LIBCTEST_TESTCASES_LIST=$(shell cat ./apps/$(AX_TESTCASE)/testcase_list_musl_libctest | tr '\n' ',')
+AX_GLIBC_BASIC_TESTCASES_LIST=$(shell cat ./apps/$(AX_TESTCASE)/testcase_list_glibc_basic | tr '\n' ',')
 FEATURES ?= fp_simd
 
 RUSTDOCFLAGS := -Z unstable-options --enable-index-page -D rustdoc::broken_intra_doc_links -D missing-docs
@@ -11,6 +13,8 @@ ifneq ($(filter $(MAKECMDGOALS),doc_check_missing),) # make doc_check_missing
     export RUSTDOCFLAGS
 else ifeq ($(filter $(MAKECMDGOALS),clean user_apps ax_root),) # Not make clean, user_apps, ax_root
     export AX_TESTCASES_LIST
+	export AX_MUSL_LIBCTEST_TESTCASES_LIST
+    export AX_GLIBC_BASIC_TESTCASES_LIST
 endif
 
 DIR := $(shell basename $(PWD))
