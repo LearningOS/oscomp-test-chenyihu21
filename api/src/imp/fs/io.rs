@@ -38,3 +38,7 @@ pub fn sys_open(path: UserConstPtr<c_char>, flags: i32, modes: mode_t) -> LinuxR
     use arceos_posix_api::AT_FDCWD;
     sys_openat(AT_FDCWD as _, path, flags, modes)
 }
+
+pub fn sys_lseek(fd: i32, offset: i32, whence: i32) -> LinuxResult<isize> {
+    Ok(api::sys_lseek(fd, offset.into(), whence) as _)
+}

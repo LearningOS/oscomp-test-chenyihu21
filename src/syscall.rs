@@ -129,6 +129,9 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         ),
         #[cfg(target_arch = "x86_64")]
         Sysno::fork => sys_clone(17, 0, 0, 0, 0),
+        Sysno::lseek => sys_lseek(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::unlink => sys_unlink(tf.arg0().into()),
         _ => {
             warn!("Unimplemented syscall: {}", syscall_num);
             axtask::exit(LinuxError::ENOSYS as _)
