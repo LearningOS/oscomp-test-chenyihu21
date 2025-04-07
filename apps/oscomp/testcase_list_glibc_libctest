@@ -1,1 +1,0 @@
-/glibc/runtest.exe -w entry-static.exe qsort

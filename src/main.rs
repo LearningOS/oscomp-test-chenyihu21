@@ -13,11 +13,13 @@ use starry_core::entry::run_user_app;
 
 #[unsafe(no_mangle)]
 fn main() {
+    ax_println!("#### OS COMP TEST GROUP START basic-glibc ####");
+    ax_println!("#### OS COMP TEST GROUP START basic-musl ####");
     let testcases = option_env!("AX_TESTCASES_LIST")
         .unwrap_or_else(|| "Please specify the testcases list by making user_apps")
         .split(',')
         .filter(|&x| !x.is_empty());
-
+    let mut i = 0;
     for testcase in testcases {
         let args = testcase
             .split_ascii_whitespace()
@@ -26,5 +28,15 @@ fn main() {
 
         let exit_code = run_user_app(&args, &[]);
         info!("User task {} exited with code: {:?}", testcase, exit_code);
+        i += 1;
+        if i == 32 {
+            ax_println!("#### OS COMP TEST GROUP END basic-musl ####");
+            ax_println!("#### OS COMP TEST GROUP END basic-glibc ####");
+            ax_println!("#### OS COMP TEST GROUP START libctest-glibc ####");
+            ax_println!("#### OS COMP TEST GROUP START libctest-musl ####");
+        } else if i == 205 {
+            ax_println!("#### OS COMP TEST GROUP END libctest-musl ####");
+            ax_println!("#### OS COMP TEST GROUP END libctest-glibc ####");
+        }
     }
 }
