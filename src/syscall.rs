@@ -1,59 +1,14 @@
-mod fs;
-mod mm;
-mod signal;
-mod sys;
-mod task;
-mod utils;
-
-use crate::task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel};
 use axerrno::{LinuxError, LinuxResult};
 use axhal::{
     arch::TrapFrame,
     trap::{SYSCALL, register_trap_handler},
 };
+use starry_api::*;
+use starry_core::task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel};
 use syscalls::Sysno;
 
-use self::fs::*;
-use self::mm::*;
-use self::signal::*;
-use self::sys::*;
-use self::task::*;
-use self::utils::*;
-
-macro_rules! syscall_instrument {(
-    $( #[$attr:meta] )*
-    $pub:vis
-    fn $fname:ident (
-        $( $arg_name:ident : $ArgTy:ty ),* $(,)?
-    ) -> $RetTy:ty
-    $body:block
-) => (
-    $( #[$attr] )*
-    #[allow(unused_parens)]
-    $pub
-    fn $fname (
-        $( $arg_name : $ArgTy ),*
-    ) -> $RetTy
-    {
-        /// Re-emit the original function definition, but as a scoped helper
-        $( #[$attr] )*
-        fn __original_func__ (
-            $($arg_name: $ArgTy),*
-        ) -> $RetTy
-        $body
-
-        let res = __original_func__($($arg_name),*);
-        match res {
-            Ok(_) | Err(axerrno::LinuxError::EAGAIN) => debug!(concat!(stringify!($fname), " => {:?}"),  res),
-            Err(_) => info!(concat!(stringify!($fname), " => {:?}"), res),
-        }
-        res
-    }
-)}
-pub(crate) use syscall_instrument;
-
 #[register_trap_handler(SYSCALL)]
-fn handle_syscall(tf: &TrapFrame, syscall_num: usize) -> isize {
+fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
     info!("Syscall {:?}", Sysno::from(syscall_num as u32));
     time_stat_from_user_to_kernel();
     let result: LinuxResult<isize> = match Sysno::from(syscall_num as u32) {
@@ -162,27 +117,18 @@ fn handle_syscall(tf: &TrapFrame, syscall_num: usize) -> isize {
             tf.arg2().into(),
             tf.arg3() as _,
         ),
-        #[cfg(target_arch = "x86_64")]
-        Sysno::fork => sys_clone(
-            17,
-            0,
-            0,
-            0,
-            0,
-        ),
+        Sysno::rt_sigtimedwait => {
+            sys_rt_sigtimedwait(tf.arg0().into(), tf.arg1().into(), tf.arg2().into())
+        }
+        Sysno::gettid => sys_gettid(),
         Sysno::prlimit64 => sys_prlimit64(
             tf.arg0() as _,
             tf.arg1() as _,
             tf.arg2().into(),
             tf.arg3().into(),
         ),
-        Sysno::rt_sigtimedwait => sys_rt_sigtimedwait(
-            tf.arg0() as _,
-            tf.arg1().into(),
-            tf.arg2().into(),
-            tf.arg3() as _,
-        ),
-        Sysno::gettid => sys_gettid(),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::fork => sys_clone(17, 0, 0, 0, 0),
         _ => {
             warn!("Unimplemented syscall: {}", syscall_num);
             axtask::exit(LinuxError::ENOSYS as _)

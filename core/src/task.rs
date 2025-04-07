@@ -1,3 +1,9 @@
+use core::{
+    alloc::Layout,
+    cell::UnsafeCell,
+    sync::atomic::{AtomicU64, Ordering},
+};
+
 use alloc::{
     string::{String, ToString},
     sync::Arc,
@@ -6,18 +12,6 @@ use alloc::{
 use arceos_posix_api::FD_TABLE;
 use axerrno::{AxError, AxResult};
 use axfs::{CURRENT_DIR, CURRENT_DIR_PATH};
-use core::{
-    alloc::Layout,
-    cell::UnsafeCell,
-    sync::atomic::{AtomicU64, Ordering},
-};
-use memory_addr::VirtAddrRange;
-use spin::Once;
-
-use crate::{
-    copy_from_kernel,
-    ctypes::{CloneFlags, TimeStat, WaitStatus},
-};
 use axhal::{
     arch::{TrapFrame, UspaceContext},
     time::{NANOS_PER_MICROS, NANOS_PER_SEC, monotonic_time_nanos},
@@ -26,6 +20,13 @@ use axmm::{AddrSpace, kernel_aspace};
 use axns::{AxNamespace, AxNamespaceIf};
 use axsync::Mutex;
 use axtask::{AxTaskRef, TaskExtRef, TaskInner, current};
+use memory_addr::VirtAddrRange;
+use spin::Once;
+
+use crate::{
+    ctypes::{CloneFlags, TimeStat, WaitStatus},
+    mm::copy_from_kernel,
+};
 
 /// Task extended data for the monolithic kernel.
 pub struct TaskExt {
@@ -53,6 +54,8 @@ pub struct TaskExt {
     pub heap_bottom: AtomicU64,
     /// The user heap top
     pub heap_top: AtomicU64,
+    /// The user stack size
+    pub stack_size: AtomicU64,
 }
 
 impl TaskExt {
@@ -73,6 +76,7 @@ impl TaskExt {
             time: TimeStat::new().into(),
             heap_bottom: AtomicU64::new(heap_bottom),
             heap_top: AtomicU64::new(heap_bottom),
+            stack_size: AtomicU64::new(axconfig::plat::USER_STACK_SIZE as u64),
         }
     }
 
@@ -84,6 +88,7 @@ impl TaskExt {
         _tls: usize,
         _ctid: usize,
     ) -> AxResult<u64> {
+        info!("clone task: flags={:#x}, stack={:?}", flags, stack);
         let _clone_flags = CloneFlags::from_bits((flags & !0x3f) as u32).unwrap();
 
         let mut new_task = TaskInner::new(
@@ -92,8 +97,8 @@ impl TaskExt {
                 let kstack_top = curr.kernel_stack_top().unwrap();
                 info!(
                     "Enter user space: entry={:#x}, ustack={:#x}, kstack={:#x}",
-                    curr.task_ext().uctx.get_ip(),
-                    curr.task_ext().uctx.get_sp(),
+                    curr.task_ext().uctx.ip(),
+                    curr.task_ext().uctx.sp(),
                     kstack_top,
                 );
                 unsafe { curr.task_ext().uctx.enter_uspace(kstack_top) };
@@ -101,10 +106,11 @@ impl TaskExt {
             current().id_name(),
             axconfig::plat::KERNEL_STACK_SIZE,
         );
-
         #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
         unsafe {
-            new_task.ctx_mut().set_tls(axhal::arch::read_thread_pointer().into());
+            new_task
+                .ctx_mut()
+                .set_tls(axhal::arch::read_thread_pointer().into());
         }
         let current_task = current();
         let mut current_aspace = current_task.task_ext().aspace.lock();
@@ -113,15 +119,24 @@ impl TaskExt {
         new_task
             .ctx_mut()
             .set_page_table_root(new_aspace.page_table_root());
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+        new_task
+            .ctx_mut()
+            .set_tls(axhal::arch::read_thread_pointer().into());
 
         let trap_frame = read_trapframe_from_kstack(current_task.get_kernel_stack_top().unwrap());
         let mut new_uctx = UspaceContext::from(&trap_frame);
         if let Some(stack) = stack {
+            info!("clone task: stack={:#x}", stack);
             new_uctx.set_sp(stack);
         }
         // Skip current instruction
         #[cfg(any(target_arch = "riscv64", target_arch = "loongarch64"))]
-        new_uctx.set_ip(new_uctx.get_ip() + 4);
+        {
+            let new_uctx_ip = new_uctx.ip();
+            new_uctx.set_ip(new_uctx_ip + 4);
+        }
+
         new_uctx.set_retval(0);
         let return_id: u64 = new_task.id().as_u64();
         let new_task_ext = TaskExt::new(
@@ -133,30 +148,34 @@ impl TaskExt {
         new_task_ext.ns_init_new();
         new_task.init_task_ext(new_task_ext);
         let new_task_ref = axtask::spawn_task(new_task);
+        info!(
+            "clone task: {} -> {}",
+            current_task.id_name(),
+            new_task_ref.id_name()
+        );
         current_task.task_ext().children.lock().push(new_task_ref);
         Ok(return_id)
     }
 
-    pub(crate) fn clear_child_tid(&self) -> u64 {
+    pub fn clear_child_tid(&self) -> u64 {
         self.clear_child_tid
             .load(core::sync::atomic::Ordering::Relaxed)
     }
 
-    pub(crate) fn set_clear_child_tid(&self, clear_child_tid: u64) {
+    pub fn set_clear_child_tid(&self, clear_child_tid: u64) {
         self.clear_child_tid
             .store(clear_child_tid, core::sync::atomic::Ordering::Relaxed);
     }
 
-    pub(crate) fn get_parent(&self) -> u64 {
+    pub fn get_parent(&self) -> u64 {
         self.parent_id.load(Ordering::Acquire)
     }
 
-    #[allow(unused)]
-    pub(crate) fn set_parent(&self, parent_id: u64) {
+    pub fn set_parent(&self, parent_id: u64) {
         self.parent_id.store(parent_id, Ordering::Release);
     }
 
-    pub(crate) fn ns_init_new(&self) {
+    fn ns_init_new(&self) {
         FD_TABLE
             .deref_from(&self.ns)
             .init_new(FD_TABLE.copy_inner());
@@ -187,21 +206,28 @@ impl TaskExt {
         unsafe { (*time).output() }
     }
 
-    pub(crate) fn get_heap_bottom(&self) -> u64 {
+    pub fn get_heap_bottom(&self) -> u64 {
         self.heap_bottom.load(Ordering::Acquire)
     }
 
-    #[allow(unused)]
-    pub(crate) fn set_heap_bottom(&self, bottom: u64) {
+    pub fn set_heap_bottom(&self, bottom: u64) {
         self.heap_bottom.store(bottom, Ordering::Release)
     }
 
-    pub(crate) fn get_heap_top(&self) -> u64 {
+    pub fn get_heap_top(&self) -> u64 {
         self.heap_top.load(Ordering::Acquire)
     }
 
-    pub(crate) fn set_heap_top(&self, top: u64) {
+    pub fn set_heap_top(&self, top: u64) {
         self.heap_top.store(top, Ordering::Release)
+    }
+
+    pub fn get_stack_size(&self) -> u64 {
+        self.stack_size.load(Ordering::Acquire)
+    }
+
+    pub fn set_stack_size(&self, size: u64) {
+        self.stack_size.store(size, Ordering::Release)
     }
 }
 
@@ -253,8 +279,8 @@ pub fn spawn_user_task(
             let kstack_top = curr.kernel_stack_top().unwrap();
             info!(
                 "Enter user space: entry={:#x}, ustack={:#x}, kstack={:#x}",
-                curr.task_ext().uctx.get_ip(),
-                curr.task_ext().uctx.get_sp(),
+                curr.task_ext().uctx.ip(),
+                curr.task_ext().uctx.sp(),
                 kstack_top,
             );
             unsafe { curr.task_ext().uctx.enter_uspace(kstack_top) };
@@ -289,12 +315,18 @@ pub fn read_trapframe_from_kstack(kstack_top: usize) -> TrapFrame {
     unsafe { *trap_frame_ptr }
 }
 
-pub fn wait_pid(pid: i32, exit_code_ptr: *mut i32) -> Result<u64, WaitStatus> {
+/// # Safety
+///
+/// The caller must ensure that the pointer is valid and properly aligned if it's not null.
+pub unsafe fn wait_pid(pid: i32, exit_code_ptr: *mut i32) -> Result<u64, WaitStatus> {
     let curr_task = current();
     let mut exit_task_id: usize = 0;
     let mut answer_id: u64 = 0;
     let mut answer_status = WaitStatus::NotExist;
-
+    info!(
+        "wait pid _{}_ with exit_code_ptr _{:?}_",
+        pid, exit_code_ptr
+    );
     for (index, child) in curr_task.task_ext().children.lock().iter().enumerate() {
         if pid <= 0 {
             if pid == 0 {
