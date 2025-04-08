@@ -34,7 +34,7 @@ fn main() {
             ax_println!("#### OS COMP TEST GROUP END basic-glibc ####");
             ax_println!("#### OS COMP TEST GROUP START libctest-glibc ####");
             ax_println!("#### OS COMP TEST GROUP START libctest-musl ####");
-        } else if i == 205 {
+        } else if i == 207 {
             ax_println!("#### OS COMP TEST GROUP END libctest-musl ####");
             ax_println!("#### OS COMP TEST GROUP END libctest-glibc ####");
         }

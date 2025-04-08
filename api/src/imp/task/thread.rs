@@ -263,12 +263,33 @@ pub fn sys_prlimit64(
                 }
                 info!("RLIMIT_STACK: {}", stack_limit);
             }
-            // RLIMIT_NOFILE => {
-            //     let new_limit = new_limit.get()?;
-            //     let old_limit = old_limit.get_mut()?;
-            //     let old_limit = curr_process.task_ext().set_rlimit(RLIMIT_NOFILE, new_limit, old_limit);
-            //     Ok(0)
-            // }
+            RLIMIT_NOFILE => {
+                info!("RLIMIT_NOFILE");
+                // let new_limit = new_limit.get()?;
+                let old_limit_ptr = old_limit.address().as_ptr();
+                let new_limit_ptr = new_limit.address().as_ptr();
+                // let old_limit = curr_process.task_ext().set_rlimit(RLIMIT_STACK, new_limit, old_limit);
+                // Ok(0)
+                // let mut stack_limit = curr_process
+                let mut fd_limit: u64 = task_ext.get_fd_limit();
+                if old_limit_ptr as usize != 0 {
+                    info!("RLIMIT_NOFILE: old_limit as usize != 0");
+                    let old_limit = old_limit_ptr as *mut RLimit;
+                    unsafe {
+                        *old_limit = RLimit {
+                            rlim_cur: fd_limit,
+                            rlim_max: fd_limit,
+                        };
+                    }
+                }
+                if new_limit_ptr as usize != 0 {
+                    info!("RLIMIT_NOFILE: new_limit as usize != 0");
+                    let new_limit = new_limit_ptr as *const RLimit;
+                    fd_limit = unsafe { (*new_limit).rlim_cur };
+                    task_ext.set_fd_limit(fd_limit);
+                }
+                info!("RLIMIT_NOFILE: {}", fd_limit);
+            }
             // _ => Err(LinuxError::EINVAL),
             _ => {}
         }
